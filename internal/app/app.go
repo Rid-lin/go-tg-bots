@@ -24,8 +24,8 @@ func New(cfg *config.Config) *app {
 		cfg: cfg,
 		// Create new instance of client
 		client: tdlib.NewClient(tdlib.Config{
-			APIID:               "187786",
-			APIHash:             "e782045df67ba48e441ccb105da8fc85",
+			APIID:               cfg.APIID,
+			APIHash:             cfg.APIHash,
 			SystemLanguageCode:  "en",
 			DeviceModel:         "Server",
 			SystemVersion:       "1.0.0",
@@ -136,7 +136,7 @@ func (a *app) configureLogger() {
 }
 
 func (a *app) configureClient() {
-	a.client.SetLogVerbosityLevel(1)
+	_, _ = a.client.SetLogVerbosityLevel(1)
 	// a.client.SetFilePath("./errors.txt")
 }
 
