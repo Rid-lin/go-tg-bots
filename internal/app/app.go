@@ -69,10 +69,12 @@ func (a *app) Start() {
 		if !ok {
 			return false
 		}
-		// if updateMsg.Message.Sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
-		// 	sender := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
-		// 	a.log.Debugf("UserID:%v,", sender.UserID)
-		// }
+		if updateMsg.Message.Sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
+			sender, ok := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
+			if ok {
+				a.log.Debugf("UserID:%v,", sender.UserID)
+			}
+		}
 		a.log.Debugf("ChatID:%v\n", updateMsg.Message.ChatID)
 		flag := updateMsg.Message.ChatID == a.cfg.ChatIDSearch
 		return flag
