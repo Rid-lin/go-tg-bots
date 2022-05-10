@@ -123,7 +123,7 @@ func (a *App) Start() {
 			// }
 			a.Log.Debugf("ChatID:%v\n", updateMsg.Message.ChatID)
 			flag := false
-			for _, ChatIDSearch := range a.cfg.ChatIDSearch {
+			for _, ChatIDSearch := range a.cfg.ChatsIDSearch {
 				if updateMsg.Message.ChatID == ChatIDSearch {
 					ChatIDSearchTrue = updateMsg.Message.ChatID
 					flag = true
