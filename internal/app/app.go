@@ -77,8 +77,16 @@ func (a *app) Start() {
 				}
 			}
 			a.log.Debugf("ChatID:%v\n", updateMsg.Message.ChatID)
-			ChatIDSearch = a.cfg.ChatIDSearch
-			flag := updateMsg.Message.ChatID == a.cfg.ChatIDSearch
+			flag := false
+			for _, ChatIDs := range a.cfg.ChatsIDSearch {
+				if updateMsg.Message.ChatID == ChatIDs {
+					ChatIDSearch = ChatIDs
+					flag = true
+					break
+				}
+			}
+			// ChatIDSearch = a.cfg.ChatIDSearch
+			// flag := updateMsg.Message.ChatID == a.cfg.ChatIDSearch
 			return flag
 			// if updateMsg.Message.Sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
 			// 	sender := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
@@ -113,7 +121,6 @@ func (a *app) Start() {
 			// Should get chatID somehow, check out "getChats" example
 			if flag {
 				fmt.Println("Search word in MsgText:  ", msgText.Text)
-				fmt.Print("\n")
 				option := tdlib.MessageSendOptions{
 					DisableNotification: false, // Pass true to disable notification for the message
 					FromBackground:      false, // Pass true if the message is sent from the background
