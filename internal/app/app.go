@@ -62,80 +62,82 @@ func (a *app) Start() {
 		os.Exit(1)
 	}()
 
-	// go func() {
-	// Create an filter function which will be used to filter out unwanted tdlib messages
-	eventFilter := func(msg *tdlib.TdMessage) bool {
-		updateMsg, ok := (*msg).(*tdlib.UpdateNewMessage)
-		if !ok {
-			return false
-		}
-		sender, ok := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
-		if ok {
-			if sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
-				a.log.Debugf("UserID:%v,", sender.UserID)
+	go func() {
+		var ChatIDSearch int64
+		// Create an filter function which will be used to filter out unwanted tdlib messages
+		eventFilter := func(msg *tdlib.TdMessage) bool {
+			updateMsg, ok := (*msg).(*tdlib.UpdateNewMessage)
+			if !ok {
+				return false
 			}
+			sender, ok := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
+			if ok {
+				if sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
+					a.log.Debugf("UserID:%v,", sender.UserID)
+				}
+			}
+			a.log.Debugf("ChatID:%v\n", updateMsg.Message.ChatID)
+			ChatIDSearch = a.cfg.ChatIDSearch
+			flag := updateMsg.Message.ChatID == a.cfg.ChatIDSearch
+			return flag
+			// if updateMsg.Message.Sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
+			// 	sender := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
+			// 	return sender.UserID == 1055350095
+			// }
+			// return false
 		}
-		a.log.Debugf("ChatID:%v\n", updateMsg.Message.ChatID)
-		flag := updateMsg.Message.ChatID == a.cfg.ChatIDSearch
-		return flag
-		// if updateMsg.Message.Sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
-		// 	sender := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
-		// 	return sender.UserID == 1055350095
-		// }
-		// return false
+
+		// Here we can add a receiver to retreive any message type we want
+		// We like to get UpdateNewMessage events and with a specific FilterFunc
+		receiver := a.client.AddEventReceiver(&tdlib.UpdateNewMessage{}, eventFilter, 5)
+		for newMsg := range receiver.Chan {
+			// fmt.Println(newMsg)
+			updateMsg, ok := (newMsg).(*tdlib.UpdateNewMessage)
+			if !ok {
+				continue
+			}
+			// We assume the message content is simple text: (should be more sophisticated for general use)
+			msgText := updateMsg.Message.Content.(*tdlib.MessageText)
+			if !ok {
+				continue
+			}
+			flag := false
+			for _, word := range a.cfg.Words {
+				if strings.Contains(fmt.Sprint(msgText.Text), word) {
+					flag = true
+					break
+				}
+			}
+			// https://github.com/KaoriEl/go-tdlib/blob/master/examples/sendText/sendText.go
+
+			// Should get chatID somehow, check out "getChats" example
+			if flag {
+				fmt.Println("Search word in MsgText:  ", msgText.Text)
+				fmt.Print("\n")
+				option := tdlib.MessageSendOptions{
+					DisableNotification: false, // Pass true to disable notification for the message
+					FromBackground:      false, // Pass true if the message is sent from the background
+				}
+				_, err := a.client.ForwardMessages(a.cfg.ChatID, ChatIDSearch, []int64{updateMsg.Message.ID}, &option, false, false)
+				if err != nil {
+					a.log.Error(err)
+				}
+			}
+			// fmt.Println("MsgText:  ", msgText.Text)
+			// fmt.Print("\n")
+
+		}
+
+	}()
+
+	// rawUpdates gets all updates comming from tdlib
+	rawUpdates := a.client.GetRawUpdatesChannel(100)
+	for update := range rawUpdates {
+		// Show all updates
+		log.Trace(update.Data)
+		// fmt.Println(update.Data)
+		// fmt.Print("\n\n")
 	}
-
-	// Here we can add a receiver to retreive any message type we want
-	// We like to get UpdateNewMessage events and with a specific FilterFunc
-	receiver := a.client.AddEventReceiver(&tdlib.UpdateNewMessage{}, eventFilter, 5)
-	for newMsg := range receiver.Chan {
-		// fmt.Println(newMsg)
-		updateMsg, ok := (newMsg).(*tdlib.UpdateNewMessage)
-		if !ok {
-			continue
-		}
-		// We assume the message content is simple text: (should be more sophisticated for general use)
-		msgText := updateMsg.Message.Content.(*tdlib.MessageText)
-		if !ok {
-			continue
-		}
-		flag := false
-		for _, word := range a.cfg.Words {
-			if strings.Contains(fmt.Sprint(msgText.Text), word) {
-				flag = true
-				break
-			}
-		}
-		if flag {
-			fmt.Println("Search word in MsgText:  ", msgText.Text)
-			fmt.Print("\n")
-			option := tdlib.MessageSendOptions{
-				DisableNotification: false, // Pass true to disable notification for the message
-				FromBackground:      false, // Pass true if the message is sent from the background
-			}
-			_, err := a.client.ForwardMessages(a.cfg.ChatID, a.cfg.ChatIDSearch, []int64{updateMsg.Message.ID}, &option, false, false)
-			if err != nil {
-				a.log.Error(err)
-			}
-		}
-		// fmt.Println("MsgText:  ", msgText.Text)
-		// fmt.Print("\n")
-
-		// https://github.com/KaoriEl/go-tdlib/blob/master/examples/sendText/sendText.go
-
-		// Should get chatID somehow, check out "getChats" example
-
-	}
-
-	// }()
-
-	// // rawUpdates gets all updates comming from tdlib
-	// rawUpdates := a.client.GetRawUpdatesChannel(100)
-	// for update := range rawUpdates {
-	// 	// Show all updates
-	// 	fmt.Println(update.Data)
-	// 	fmt.Print("\n\n")
-	// }
 }
 
 func (a *app) configureLogger() {
