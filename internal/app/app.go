@@ -108,9 +108,9 @@ func (a *app) Start() {
 			fmt.Print("\n")
 			option := tdlib.MessageSendOptions{
 				DisableNotification: false, // Pass true to disable notification for the message
-				FromBackground:      true,  // Pass true if the message is sent from the background
+				FromBackground:      false, // Pass true if the message is sent from the background
 			}
-			_, err := a.client.ForwardMessages(a.cfg.ChatID, a.cfg.ChatIDSearch, []int64{updateMsg.Message.ID}, &option, true, false)
+			_, err := a.client.ForwardMessages(a.cfg.ChatID, a.cfg.ChatIDSearch, []int64{updateMsg.Message.ID}, &option, false, false)
 			if err != nil {
 				a.log.Error(err)
 			}
