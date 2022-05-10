@@ -57,6 +57,7 @@ func (a *app) Start() {
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-ch
+		a.client.Close()
 		a.client.DestroyInstance()
 		os.Exit(1)
 	}()
