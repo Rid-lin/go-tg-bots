@@ -71,6 +71,7 @@ coverage: dep ## Run coverage tests
 build: ## Build program executable for linux platform.
 	mkdir -p ./bin
 	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build ${LDFLAGS} -o bin/${PROGRAM_NAME}_$(VERSION)_linux_$(COMMIT)_amd64 .
+	sudo chmod +x bin/${PROGRAM_NAME}_$(VERSION)_linux_$(COMMIT)_amd64
 
 build_alpine: build_alpine_cgo build_alpine_cgo_ver ## Build program executable for Linux amd64 without and with ver in filename and static linked.
 
