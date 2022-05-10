@@ -69,9 +69,9 @@ func (a *app) Start() {
 		if !ok {
 			return false
 		}
-		if updateMsg.Message.Sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
-			sender, ok := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
-			if ok {
+		sender, ok := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
+		if ok {
+			if sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
 				a.log.Debugf("UserID:%v,", sender.UserID)
 			}
 		}
