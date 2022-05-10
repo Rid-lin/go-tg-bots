@@ -14,12 +14,14 @@ import (
 var ConfigFilePath string
 
 type Config struct {
+	Words        []string `default:"" usage:"words for search"`
+	ChatIDSearch []int64  `default:"" usage:"ID chats for Search"`
+	ChatID       int64    `default:"" usage:"ID chats for U"`
+	APIID        string   `default:"" usage:"APIID for api telegram app"`
+	APIHash      string   `default:"" usage:"APIHash for api telegram app"`
 	LogLevel     string   `default:"info" usage:"Log level: panic, fatal, error, warn, info, debug, trace"`
 	PhoneNumber  string   `default:"" usage:"Number phone"`
 	Password     string   `default:"" usage:"Password for, TG"`
-	Words        []string `default:"" usage:"words for search"`
-	ChatID       int64    `default:"83050914" usage:"ID chats for U"`
-	ChatIDSearch int64    `default:"" usage:"ID chats for Search"`
 }
 
 func New() *Config {
