@@ -64,7 +64,10 @@ func (a *app) Start() {
 	// go func() {
 	// Create an filter function which will be used to filter out unwanted tdlib messages
 	eventFilter := func(msg *tdlib.TdMessage) bool {
-		updateMsg := (*msg).(*tdlib.UpdateNewMessage)
+		updateMsg, ok := (*msg).(*tdlib.UpdateNewMessage)
+		if !ok {
+			return false
+		}
 		// if updateMsg.Message.Sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
 		// 	sender := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
 		// 	a.log.Debugf("UserID:%v,", sender.UserID)
@@ -84,9 +87,15 @@ func (a *app) Start() {
 	receiver := a.client.AddEventReceiver(&tdlib.UpdateNewMessage{}, eventFilter, 5)
 	for newMsg := range receiver.Chan {
 		// fmt.Println(newMsg)
-		updateMsg := (newMsg).(*tdlib.UpdateNewMessage)
+		updateMsg, ok := (newMsg).(*tdlib.UpdateNewMessage)
+		if !ok {
+			continue
+		}
 		// We assume the message content is simple text: (should be more sophisticated for general use)
 		msgText := updateMsg.Message.Content.(*tdlib.MessageText)
+		if !ok {
+			continue
+		}
 		flag := false
 		for _, word := range a.cfg.Words {
 			if strings.Contains(fmt.Sprint(msgText.Text), word) {
