@@ -24,8 +24,6 @@ RUN echo "installing go version 1.18.2..." \
     && wget https://go.dev/dl/go1.18.2.linux-amd64.tar.gz  \
     && sudo rm -rf /usr/local/go \
     && sudo tar -C /usr/local -xzf go1.18.2.linux-amd64.tar.gz
-
-ARG NUMBER_CPU=8
 RUN sudo apt-get update -y \
     && sudo apt-get upgrade -y \
     && sudo apt-get install make git zlib1g-dev libssl-dev gperf php-cli cmake clang libc++-dev libc++abi-dev -y \
@@ -40,3 +38,5 @@ RUN sudo apt-get update -y \
     && cd .. \
     && cd .. \
     && ls -l /usr/local
+RUN git config --global user.email "vlad@vegner.org" \
+    && git config --global user.name "Vladislav Vegner"
