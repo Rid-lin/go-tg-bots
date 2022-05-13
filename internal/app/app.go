@@ -49,7 +49,7 @@ func (a *App) Configure() {
 	a.authorizationClient()
 }
 
-func (a *app) Start() {
+func (a *App) Start() {
 
 	// https://github.com/KaoriEl/go-tdlib/blob/master/examples/customEvents/getCustomEvents.go
 	// Handle Ctrl+C , Gracefully exit and shutdown tdlib
@@ -73,10 +73,10 @@ func (a *app) Start() {
 			sender, ok := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
 			if ok {
 				if sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
-					a.log.Debugf("UserID:%v,", sender.UserID)
+					a.Log.Debugf("UserID:%v,", sender.UserID)
 				}
 			}
-			a.log.Debugf("ChatID:%v\n", updateMsg.Message.ChatID)
+			a.Log.Debugf("ChatID:%v\n", updateMsg.Message.ChatID)
 			flag := false
 			for _, ChatIDs := range a.cfg.ChatsIDSearch {
 				if updateMsg.Message.ChatID == ChatIDs {
@@ -127,7 +127,7 @@ func (a *app) Start() {
 				}
 				_, err := a.client.ForwardMessages(a.cfg.ChatID, ChatIDSearch, []int64{updateMsg.Message.ID}, &option, false, false)
 				if err != nil {
-					a.log.Error(err)
+					a.Log.Error(err)
 				}
 			}
 			// fmt.Println("MsgText:  ", msgText.Text)
@@ -147,7 +147,7 @@ func (a *app) Start() {
 	}
 }
 
-func (a *app) configureLogger() {
+func (a *App) configureLogger() {
 	lvl, err := log.ParseLevel(a.cfg.LogLevel)
 	if err != nil {
 		log.Errorf("Error parse the level of logs (%v). Installed by default = Info", a.cfg.LogLevel)
@@ -156,7 +156,7 @@ func (a *app) configureLogger() {
 	a.Log.SetLevel(lvl)
 }
 
-func (a *app) configureClient() {
+func (a *App) configureClient() {
 	_, _ = a.client.SetLogVerbosityLevel(1)
 	// a.client.SetFilePath("./errors.txt")
 }
@@ -198,94 +198,94 @@ func (a *App) authorizationClient() {
 	}
 }
 
-func (a *App) Start() {
+// func (a *App) Start() {
 
-	// https://github.com/KaoriEl/go-tdlib/blob/master/examples/customEvents/getCustomEvents.go
-	// Handle Ctrl+C , Gracefully exit and shutdown tdlib
-	var ch = make(chan os.Signal, 2)
-	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-ch
-		a.client.DestroyInstance()
-		os.Exit(1)
-	}()
+// 	// https://github.com/KaoriEl/go-tdlib/blob/master/examples/customEvents/getCustomEvents.go
+// 	// Handle Ctrl+C , Gracefully exit and shutdown tdlib
+// 	var ch = make(chan os.Signal, 2)
+// 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+// 	go func() {
+// 		<-ch
+// 		a.client.DestroyInstance()
+// 		os.Exit(1)
+// 	}()
 
-	go func() {
-		var ChatIDSearchTrue int64
-		// Create an filter function which will be used to filter out unwanted tdlib messages
-		eventFilter := func(msg *tdlib.TdMessage) bool {
-			updateMsg := (*msg).(*tdlib.UpdateNewMessage)
-			// if updateMsg.Message.Sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
-			// 	sender := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
-			// 	a.log.Debugf("UserID:%v,", sender.UserID)
-			// }
-			a.Log.Debugf("ChatID:%v\n", updateMsg.Message.ChatID)
-			flag := false
-			for _, ChatIDSearch := range a.cfg.ChatsIDSearch {
-				if updateMsg.Message.ChatID == ChatIDSearch {
-					ChatIDSearchTrue = updateMsg.Message.ChatID
-					flag = true
-					break
-				}
-			}
-			return flag
-			// if updateMsg.Message.Sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
-			// 	sender := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
-			// 	return sender.UserID == 1055350095
-			// }
-			// return false
-		}
+// 	go func() {
+// 		var ChatIDSearchTrue int64
+// 		// Create an filter function which will be used to filter out unwanted tdlib messages
+// 		eventFilter := func(msg *tdlib.TdMessage) bool {
+// 			updateMsg := (*msg).(*tdlib.UpdateNewMessage)
+// 			// if updateMsg.Message.Sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
+// 			// 	sender := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
+// 			// 	a.log.Debugf("UserID:%v,", sender.UserID)
+// 			// }
+// 			a.Log.Debugf("ChatID:%v\n", updateMsg.Message.ChatID)
+// 			flag := false
+// 			for _, ChatIDSearch := range a.cfg.ChatsIDSearch {
+// 				if updateMsg.Message.ChatID == ChatIDSearch {
+// 					ChatIDSearchTrue = updateMsg.Message.ChatID
+// 					flag = true
+// 					break
+// 				}
+// 			}
+// 			return flag
+// 			// if updateMsg.Message.Sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
+// 			// 	sender := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
+// 			// 	return sender.UserID == 1055350095
+// 			// }
+// 			// return false
+// 		}
 
-		// Here we can add a receiver to retreive any message type we want
-		// We like to get UpdateNewMessage events and with a specific FilterFunc
-		receiver := a.client.AddEventReceiver(&tdlib.UpdateNewMessage{}, eventFilter, 5)
-		for newMsg := range receiver.Chan {
-			// fmt.Println(newMsg)
+// 		// Here we can add a receiver to retreive any message type we want
+// 		// We like to get UpdateNewMessage events and with a specific FilterFunc
+// 		receiver := a.client.AddEventReceiver(&tdlib.UpdateNewMessage{}, eventFilter, 5)
+// 		for newMsg := range receiver.Chan {
+// 			// fmt.Println(newMsg)
 
-			updateMsg, ok := (newMsg).(*tdlib.UpdateNewMessage)
-			if !ok {
-				continue
-			}
-			// We assume the message content is simple text: (should be more sophisticated for general use)
-			msgText, ok := updateMsg.Message.Content.(*tdlib.MessageText)
-			if !ok {
-				continue
-			}
-			flag := false
-			for _, word := range a.cfg.Words {
-				word = strings.ToLower(word)
-				text := strings.ToLower(fmt.Sprint(msgText.Text))
-				if strings.Contains(text, word) {
-					flag = true
-					break
-				}
-			}
-			if flag {
-				fmt.Println("Search word in MsgText:  ", msgText.Text)
-				fmt.Print("\n")
+// 			updateMsg, ok := (newMsg).(*tdlib.UpdateNewMessage)
+// 			if !ok {
+// 				continue
+// 			}
+// 			// We assume the message content is simple text: (should be more sophisticated for general use)
+// 			msgText, ok := updateMsg.Message.Content.(*tdlib.MessageText)
+// 			if !ok {
+// 				continue
+// 			}
+// 			flag := false
+// 			for _, word := range a.cfg.Words {
+// 				word = strings.ToLower(word)
+// 				text := strings.ToLower(fmt.Sprint(msgText.Text))
+// 				if strings.Contains(text, word) {
+// 					flag = true
+// 					break
+// 				}
+// 			}
+// 			if flag {
+// 				fmt.Println("Search word in MsgText:  ", msgText.Text)
+// 				fmt.Print("\n")
 
-				// https://github.com/KaoriEl/go-tdlib/blob/master/examples/sendText/sendText.go
+// 				// https://github.com/KaoriEl/go-tdlib/blob/master/examples/sendText/sendText.go
 
-				// Should get chatID somehow, check out "getChats" example
-				option := tdlib.MessageSendOptions{
-					DisableNotification: false, // Pass true to disable notification for the message
-					FromBackground:      false, // Pass true if the message is sent from the background
-				}
-				_, err := a.client.ForwardMessages(a.cfg.ChatID, ChatIDSearchTrue, []int64{updateMsg.Message.ID}, &option, false, false)
-				if err != nil {
-					a.Log.Error(err)
-				}
-			}
-		}
+// 				// Should get chatID somehow, check out "getChats" example
+// 				option := tdlib.MessageSendOptions{
+// 					DisableNotification: false, // Pass true to disable notification for the message
+// 					FromBackground:      false, // Pass true if the message is sent from the background
+// 				}
+// 				_, err := a.client.ForwardMessages(a.cfg.ChatID, ChatIDSearchTrue, []int64{updateMsg.Message.ID}, &option, false, false)
+// 				if err != nil {
+// 					a.Log.Error(err)
+// 				}
+// 			}
+// 		}
 
-	}()
+// 	}()
 
-	// rawUpdates gets all updates comming from tdlib
-	rawUpdates := a.client.GetRawUpdatesChannel(100)
-	for update := range rawUpdates {
-		// Show all updates
-		log.Trace(update.Data)
-		// fmt.Println(update.Data)
-		// fmt.Print("\n\n")
-	}
-}
+// 	// rawUpdates gets all updates comming from tdlib
+// 	rawUpdates := a.client.GetRawUpdatesChannel(100)
+// 	for update := range rawUpdates {
+// 		// Show all updates
+// 		log.Trace(update.Data)
+// 		// fmt.Println(update.Data)
+// 		// fmt.Print("\n\n")
+// 	}
+// }
