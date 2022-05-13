@@ -1,0 +1,19 @@
+[Unit]
+  Description=TGBot
+  After=network.target
+ 
+[Service]
+  ExecStart=/usr/local/bin/gomtc
+  ExecStop=/bin/kill -SIGTERM $MAINPID
+  Type=idle
+  KillMode=process
+  Restart=on-failure
+  RestartSec=5s
+
+  SyslogIdentifier=gomtc
+  SyslogFacility=daemon
+  User=tgbot
+  Group=tgbot
+ 
+[Install]
+  WantedBy=multiuser.target
