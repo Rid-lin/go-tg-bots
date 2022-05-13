@@ -1,0 +1,15 @@
+log_level: debug
+words: 
+  - 'First_word_for_search'
+  - 'Second_word_for_search'
+chats_id_search:
+  #Chat in which to search 1
+  - -100116686584
+  #Chat in which to search 2
+  - -100113717453
+  #Chat in which to search 3
+  - -100122289288
+#Char fo forwarding
+chat_id: 1354573
+apiid: '187786'
+api_hash: 'e782045df67ba48e441ccb105da8fc85'
