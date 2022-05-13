@@ -38,5 +38,5 @@ RUN sudo apt-get update -y \
     && cd .. \
     && cd .. \
     && ls -l /usr/local
-RUN git config --global user.email "vlad@vegner.org" \
-    && git config --global user.name "Vladislav Vegner"
+# RUN git config --global user.email "vlad@vegner.org" \
+#     && git config --global user.name "Vladislav Vegner"
