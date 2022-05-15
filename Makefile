@@ -15,8 +15,8 @@ PLATFORMS=linux windows
 # ARCHITECTURES=386 amd64 ppc64 arm arm64
 ARCHITECTURES=386 amd64 arm arm64
 
-LDFLAGS = -ldflags "-s -w -linkmode external -extldflags '-static' -X=main.Version=${VERSION} -X=main.Build=${COMMIT} -X main.gitTag=${TAG} -X main.gitCommit=${COMMIT} -X main.gitBranch=${BRANCH} -X main.buildTime=${BUILD_TIME}"
-# LDFLAGS = -ldflags "-s -w -X=main.Version=${VERSION} -X=main.Build=${COMMIT} -X main.gitTag=${TAG} -X main.gitCommit=${COMMIT} -X main.gitBranch=${BRANCH} -X main.buildTime=${BUILD_TIME}"
+# LDFLAGS = -ldflags "-s -w -linkmode external -extldflags '-static' -X=main.Version=${VERSION} -X=main.Build=${COMMIT} -X main.gitTag=${TAG} -X main.gitCommit=${COMMIT} -X main.gitBranch=${BRANCH} -X main.buildTime=${BUILD_TIME}"
+LDFLAGS = -ldflags "-s -w -X=main.Version=${VERSION} -X=main.Build=${COMMIT} -X main.gitTag=${TAG} -X main.gitCommit=${COMMIT} -X main.gitBranch=${BRANCH} -X main.buildTime=${BUILD_TIME}"
 
 # Check for required command tools to build or stop immediately
 EXECUTABLES = git go find pwd basename
@@ -41,12 +41,12 @@ dep: ## Download the dependencies.
 
 build: ## Build program executable for linux platform.
 	mkdir -p ${PWD}/bin
-	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -mod=vendor ${LDFLAGS} -o bin/${PROGRAM_NAME}_$(VERSION)_linux_$(COMMIT)_amd64 .
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=vendor ${LDFLAGS} -o bin/${PROGRAM_NAME}_$(VERSION)_linux_$(COMMIT)_amd64 .
 	chmod +x bin/${PROGRAM_NAME}_$(VERSION)_linux_$(COMMIT)_amd64
 
 build_for_docker: ## Build program executable for linux platform.
 	mkdir -p ${PWD}/bin
-	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build ${LDFLAGS} -o bin/tgbot .
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ${LDFLAGS} -o bin/tgbot .
 	chmod +x bin/tgbot
 
 pack: ## Packing all executable files in ${PWD}/bin using UPX 

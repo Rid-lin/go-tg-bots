@@ -3,8 +3,8 @@ package main
 import (
 	_ "net/http/pprof"
 
-	"github.com/rid-lin/go-tg-bots/for_Vasiliy/internal/app"
-	"github.com/rid-lin/go-tg-bots/for_Vasiliy/internal/config"
+	"github.com/rid-lin/go-tgbot-4zenen/internal/app"
+	"github.com/rid-lin/go-tgbot-4zenen/internal/config"
 )
 
 func main() {

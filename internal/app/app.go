@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rid-lin/go-tg-bots/for_Vasiliy/internal/config"
+	"github.com/rid-lin/go-tgbot-4zenen/internal/config"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/k0kubun/pp"
@@ -37,12 +37,10 @@ func New(cfg *config.Config) *App {
 
 func (a *App) Configure() {
 	a.configureLogger()
-	a.authorizationClient()
 }
 
 func (a *App) Start() {
 
-	// https://github.com/KaoriEl/go-tdlib/blob/master/examples/customEvents/getCustomEvents.go
 	// Handle Ctrl+C , Gracefully exit and shutdown tdlib
 	var ch = make(chan os.Signal, 2)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
@@ -54,6 +52,13 @@ func (a *App) Start() {
 		}
 		os.Exit(1)
 	}()
+
+	isRegistred, err := a.authorizationClient()
+	dry.PanicIfErr(err)
+	if !isRegistred {
+		log.Error("can't registred")
+		os.Exit(1)
+	}
 
 	fmt.Print("Enter code: ")
 	var code string
@@ -94,17 +99,16 @@ func newClient(cfg *config.Config) *telegram.Client {
 	return client
 }
 
-func (a *App) authorizationClient() {
+func (a *App) authorizationClient() (bool, error) {
 
 	// Please, don't spam auth too often, if you have session file, don't repeat auth process, please.
 	signedIn, err := a.client.IsSessionRegistred()
 	if err != nil {
-		panic(errors.Wrap(err, "can't check that session is registred"))
+		return false, errors.Wrap(err, "can't check that session is registred")
 	}
 
 	if signedIn {
-		println("You've already signed in!")
-		os.Exit(0)
+		return true, nil
 	}
 
 	setCode, err := a.client.AuthSendCode(
@@ -118,7 +122,7 @@ func (a *App) authorizationClient() {
 		if !errors.As(err, &errResponse) {
 			// some strange error, looks like a bug actually
 			pp.Println(err)
-			panic(err)
+			return false, err
 		} else {
 			if errResponse.Message == "AUTH_RESTART" {
 				println("Oh crap! You accidentally restart authorization process!")
@@ -136,7 +140,7 @@ func (a *App) authorizationClient() {
 				pp.Println(errResponse)
 			}
 
-			os.Exit(1)
+			return false, nil
 		}
 	}
 
@@ -152,8 +156,8 @@ func (a *App) authorizationClient() {
 	if err == nil {
 		pp.Println(auth)
 
-		fmt.Println("Success! You've signed in!")
-		return
+		a.Log.Infoln("Success! You've signed in!")
+		return true, nil
 	}
 
 	// if you don't have password protection — THAT'S ALL! You're already logged in.
@@ -186,4 +190,6 @@ func (a *App) authorizationClient() {
 
 	pp.Println(auth)
 	fmt.Println("Success! You've signed in!")
+	return true, nil
+
 }

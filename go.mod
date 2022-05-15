@@ -1,4 +1,4 @@
-module github.com/rid-lin/go-tg-bots/for_Vasiliy
+module github.com/rid-lin/go-tgbot-4zenen
 
 go 1.18
 
