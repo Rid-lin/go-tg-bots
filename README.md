@@ -1,4 +1,4 @@
-(github.com/rid-lin/go-tg-bots/for_Vasiliy)
+(github.com/rid-lin/go-tg-bots)
 
 # A simple telegram bot for spying on chats
 
@@ -11,11 +11,11 @@ https://tdlib.github.io/td/build.html?language=Go
 
 Then clone the repository
 
-`git clone github.com/rid-lin/go-tg-bots/for_Vasiliy.git`
+`git clone github.com/rid-lin/go-tg-bots`
 
 `cd for_Vasiliy`
 
-`cp /config /etc/for_Vasiliy/`
+`cp /config /etc/go-tg-bots`
 
 Build programm:
 
@@ -26,23 +26,23 @@ Build programm:
 Not relevant
 
 ```
-Edit file /usr/share/for_Vasiliy/assets/for_Vasiliy.service
+Edit file /usr/share/for_Vasiliy/go-tg-bots.service
 
-`nano /usr/share/for_Vasiliy/assets/for_Vasiliy.service`
+`nano /usr/share/for_Vasiliy/go-tg-bots.service`
 
 and move to /lib/systemd/system
 
-`mv /usr/share/for_Vasiliy/assets/for_Vasiliy.service /lib/systemd/system`
+`mv /usr/share/for_Vasiliy/go-tg-bots.service /lib/systemd/system`
 
 Make sure the log folder exists, If not then
 
-`mkdir -p /var/log/for_Vasiliy/`
+`mkdir -p /var/log/go-tg-bots/`
 
 Configuring sistemd to automatically start the program
 
 `systemctl daemon-reload`
 
-`systemctl start for_Vasiliy`
+`systemctl start go-tg-bots`
 
-`systemctl enable for_Vasiliy`
+`systemctl enable go-tg-bots`
 ```
