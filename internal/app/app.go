@@ -1,51 +1,42 @@
 package app
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/rid-lin/go-tg-bots/for_Vasiliy/internal/config"
 	log "github.com/sirupsen/logrus"
 
-	tdlib "github.com/Arman92/go-tdlib"
+	"github.com/k0kubun/pp"
+	"github.com/pkg/errors"
+	dry "github.com/xelaj/go-dry"
+	"github.com/xelaj/mtproto"
+	"github.com/xelaj/mtproto/telegram"
 )
 
 type App struct {
 	cfg    *config.Config
-	client *tdlib.Client
+	client *telegram.Client
 	Log    *log.Logger
 }
 
 func New(cfg *config.Config) *App {
 	return &App{
-		cfg: cfg,
-		// Create new instance of client
-		client: tdlib.NewClient(tdlib.Config{
-			APIID:               cfg.APIID,
-			APIHash:             cfg.APIHash,
-			SystemLanguageCode:  "en",
-			DeviceModel:         "Server",
-			SystemVersion:       "1.0.0",
-			ApplicationVersion:  "1.0.0",
-			UseMessageDatabase:  true,
-			UseFileDatabase:     true,
-			UseChatInfoDatabase: true,
-			UseTestDataCenter:   false,
-			DatabaseDirectory:   "./tdlib-db",
-			FileDirectory:       "./tdlib-files",
-			IgnoreFileNames:     false,
-		}),
-		Log: log.New(),
+		cfg:    cfg,
+		client: newClient(cfg),
+		Log:    log.New(),
 	}
 
 }
 
 func (a *App) Configure() {
 	a.configureLogger()
-	a.configureClient()
 	a.authorizationClient()
 }
 
@@ -57,94 +48,16 @@ func (a *App) Start() {
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-ch
-		a.client.Close()
-		a.client.DestroyInstance()
+		err := a.client.Disconnect()
+		if err != nil {
+			panic(err)
+		}
 		os.Exit(1)
 	}()
 
-	go func() {
-		var ChatIDSearch int64
-		// Create an filter function which will be used to filter out unwanted tdlib messages
-		eventFilter := func(msg *tdlib.TdMessage) bool {
-			updateMsg, ok := (*msg).(*tdlib.UpdateNewMessage)
-			if !ok {
-				return false
-			}
-			sender, ok := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
-			if ok {
-				if sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
-					a.Log.Debugf("UserID:%v,", sender.UserID)
-				}
-			}
-			a.Log.Debugf("ChatID:%v\n", updateMsg.Message.ChatID)
-			flag := false
-			for _, ChatIDs := range a.cfg.ChatsIDSearch {
-				if updateMsg.Message.ChatID == ChatIDs {
-					ChatIDSearch = ChatIDs
-					flag = true
-					break
-				}
-			}
-			// ChatIDSearch = a.cfg.ChatIDSearch
-			// flag := updateMsg.Message.ChatID == a.cfg.ChatIDSearch
-			return flag
-			// if updateMsg.Message.Sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
-			// 	sender := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
-			// 	return sender.UserID == 1055350095
-			// }
-			// return false
-		}
-
-		// Here we can add a receiver to retreive any message type we want
-		// We like to get UpdateNewMessage events and with a specific FilterFunc
-		receiver := a.client.AddEventReceiver(&tdlib.UpdateNewMessage{}, eventFilter, 5)
-		for newMsg := range receiver.Chan {
-			// fmt.Println(newMsg)
-			updateMsg, ok := (newMsg).(*tdlib.UpdateNewMessage)
-			if !ok {
-				continue
-			}
-			// We assume the message content is simple text: (should be more sophisticated for general use)
-			msgText := updateMsg.Message.Content.(*tdlib.MessageText)
-			if !ok {
-				continue
-			}
-			flag := false
-			for _, word := range a.cfg.Words {
-				if strings.Contains(fmt.Sprint(msgText.Text), word) {
-					flag = true
-					break
-				}
-			}
-			// https://github.com/KaoriEl/go-tdlib/blob/master/examples/sendText/sendText.go
-
-			// Should get chatID somehow, check out "getChats" example
-			if flag {
-				fmt.Println("Search word in MsgText:  ", msgText.Text)
-				option := tdlib.MessageSendOptions{
-					DisableNotification: false, // Pass true to disable notification for the message
-					FromBackground:      false, // Pass true if the message is sent from the background
-				}
-				_, err := a.client.ForwardMessages(a.cfg.ChatID, ChatIDSearch, []int64{updateMsg.Message.ID}, &option, false, false)
-				if err != nil {
-					a.Log.Error(err)
-				}
-			}
-			// fmt.Println("MsgText:  ", msgText.Text)
-			// fmt.Print("\n")
-
-		}
-
-	}()
-
-	// rawUpdates gets all updates comming from tdlib
-	rawUpdates := a.client.GetRawUpdatesChannel(100)
-	for update := range rawUpdates {
-		// Show all updates
-		log.Trace(update.Data)
-		// fmt.Println(update.Data)
-		// fmt.Print("\n\n")
-	}
+	fmt.Print("Enter code: ")
+	var code string
+	fmt.Scanln(&code)
 }
 
 func (a *App) configureLogger() {
@@ -156,136 +69,121 @@ func (a *App) configureLogger() {
 	a.Log.SetLevel(lvl)
 }
 
-func (a *App) configureClient() {
-	_, _ = a.client.SetLogVerbosityLevel(1)
-	// a.client.SetFilePath("./errors.txt")
+func newClient(cfg *config.Config) *telegram.Client {
+	// helper variables
+	appStorage, err := PrepareAppStorage(filepath.Join(cfg.Path, "config"))
+	dry.PanicIfErr(err)
+	sessionFile := filepath.Join(appStorage, "session.json")
+	publicKeys := filepath.Join(appStorage, "tg_public_keys.pem")
+
+	// edit these params for you!
+	client, err := telegram.NewClient(telegram.ClientConfig{
+		// where to store session configuration. must be set
+		SessionFile: sessionFile,
+		// host address of mtproto server. Actually, it can be any mtproxy, not only official
+		ServerHost: "149.154.167.50:443",
+		// public keys file is path to file with public keys, which you must get from https://my.telegram.org
+		PublicKeysFile:  publicKeys,
+		AppID:           cfg.APIID,   // app id, could be find at https://my.telegram.org
+		AppHash:         cfg.APIHash, // app hash, could be find at https://my.telegram.org
+		InitWarnChannel: false,       // if we want to get errors, otherwise, client.Warnings will be set nil
+	})
+	dry.PanicIfErr(err)
+	client.Warnings = make(chan error) // required to initialize, if we want to get errors
+	ReadWarningsToStdErr(client.Warnings)
+	return client
 }
 
 func (a *App) authorizationClient() {
-	// https://github.com/KaoriEl/go-tdlib/blob/master/examples/authorization/basicAuthorization.go
-	for {
-		currentState, _ := a.client.Authorize()
-		if currentState.GetAuthorizationStateEnum() == tdlib.AuthorizationStateWaitPhoneNumberType {
-			// fmt.Print("Enter phone: ")
-			// var number string
-			// fmt.Scanln(&number)
-			number := a.cfg.PhoneNumber
-			_, err := a.client.SendPhoneNumber(number)
-			if err != nil {
-				fmt.Printf("Error sending phone number: %v", err)
+
+	// Please, don't spam auth too often, if you have session file, don't repeat auth process, please.
+	signedIn, err := a.client.IsSessionRegistred()
+	if err != nil {
+		panic(errors.Wrap(err, "can't check that session is registred"))
+	}
+
+	if signedIn {
+		println("You've already signed in!")
+		os.Exit(0)
+	}
+
+	setCode, err := a.client.AuthSendCode(
+		a.cfg.PhoneNumber, int32(a.cfg.APIID), a.cfg.APIHash, &telegram.CodeSettings{},
+	)
+
+	// this part shows how to deal with errors (if you want of course. No one
+	// like errors, but the can be return sometimes)
+	if err != nil {
+		errResponse := &mtproto.ErrResponseCode{}
+		if !errors.As(err, &errResponse) {
+			// some strange error, looks like a bug actually
+			pp.Println(err)
+			panic(err)
+		} else {
+			if errResponse.Message == "AUTH_RESTART" {
+				println("Oh crap! You accidentally restart authorization process!")
+				println("You should login only once, if you'll spam 'AuthSendCode' method, you can be")
+				println("timeouted to loooooooong long time. You warned.")
+			} else if errResponse.Message == "FLOOD_WAIT_X" {
+				println("No way... You've reached flood timeout! Did i warn you? Yes, i am. That's what")
+				println("happens, when you don't listen to me...")
+				println()
+				timeoutDuration := time.Second * time.Duration(errResponse.AdditionalInfo.(int))
+
+				println("Repeat after " + timeoutDuration.String())
+			} else {
+				println("Oh crap! Got strange error:")
+				pp.Println(errResponse)
 			}
-		} else if currentState.GetAuthorizationStateEnum() == tdlib.AuthorizationStateWaitCodeType {
-			fmt.Print("Enter code: ")
-			var code string
-			fmt.Scanln(&code)
-			_, err := a.client.SendAuthCode(code)
-			if err != nil {
-				fmt.Printf("Error sending auth code : %v", err)
-			}
-		} else if currentState.GetAuthorizationStateEnum() == tdlib.AuthorizationStateWaitPasswordType {
-			// fmt.Print("Enter Password: ")
-			// var password string
-			// fmt.Scanln(&password)
-			password := a.cfg.Password
-			_, err := a.client.SendAuthPassword(password)
-			if err != nil {
-				fmt.Printf("Error sending auth password: %v", err)
-			}
-		} else if currentState.GetAuthorizationStateEnum() == tdlib.AuthorizationStateReadyType {
-			fmt.Println("Authorization Ready! Let's rock")
-			break
+
+			os.Exit(1)
 		}
 	}
+
+	fmt.Print("Auth code: ")
+	code, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	code = strings.ReplaceAll(code, "\n", "")
+
+	auth, err := a.client.AuthSignIn(
+		a.cfg.PhoneNumber,
+		setCode.PhoneCodeHash,
+		code,
+	)
+	if err == nil {
+		pp.Println(auth)
+
+		fmt.Println("Success! You've signed in!")
+		return
+	}
+
+	// if you don't have password protection — THAT'S ALL! You're already logged in.
+	// but if you have 2FA, you need to make few more steps:
+
+	// could be some errors:
+	errResponse := &mtproto.ErrResponseCode{}
+	ok := errors.As(err, &errResponse)
+	// checking that error type is correct, and error msg is actualy ask for password
+	if !ok || errResponse.Message != "SESSION_PASSWORD_NEEDED" {
+		fmt.Println("SignIn failed:", err)
+		println("\n\nMore info about error:")
+		pp.Println(err)
+		os.Exit(1)
+	}
+
+	fmt.Print("Password:")
+	password, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	password = strings.ReplaceAll(password, "\n", "")
+
+	accountPassword, err := a.client.AccountGetPassword()
+	dry.PanicIfErr(err)
+
+	// GetInputCheckPassword is fast response object generator
+	inputCheck, err := telegram.GetInputCheckPassword(password, accountPassword)
+	dry.PanicIfErr(err)
+
+	auth, err = a.client.AuthCheckPassword(inputCheck)
+	dry.PanicIfErr(err)
+
+	pp.Println(auth)
+	fmt.Println("Success! You've signed in!")
 }
-
-// func (a *App) Start() {
-
-// 	// https://github.com/KaoriEl/go-tdlib/blob/master/examples/customEvents/getCustomEvents.go
-// 	// Handle Ctrl+C , Gracefully exit and shutdown tdlib
-// 	var ch = make(chan os.Signal, 2)
-// 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
-// 	go func() {
-// 		<-ch
-// 		a.client.DestroyInstance()
-// 		os.Exit(1)
-// 	}()
-
-// 	go func() {
-// 		var ChatIDSearchTrue int64
-// 		// Create an filter function which will be used to filter out unwanted tdlib messages
-// 		eventFilter := func(msg *tdlib.TdMessage) bool {
-// 			updateMsg := (*msg).(*tdlib.UpdateNewMessage)
-// 			// if updateMsg.Message.Sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
-// 			// 	sender := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
-// 			// 	a.log.Debugf("UserID:%v,", sender.UserID)
-// 			// }
-// 			a.Log.Debugf("ChatID:%v\n", updateMsg.Message.ChatID)
-// 			flag := false
-// 			for _, ChatIDSearch := range a.cfg.ChatsIDSearch {
-// 				if updateMsg.Message.ChatID == ChatIDSearch {
-// 					ChatIDSearchTrue = updateMsg.Message.ChatID
-// 					flag = true
-// 					break
-// 				}
-// 			}
-// 			return flag
-// 			// if updateMsg.Message.Sender.GetMessageSenderEnum() == tdlib.MessageSenderUserType {
-// 			// 	sender := updateMsg.Message.Sender.(*tdlib.MessageSenderUser)
-// 			// 	return sender.UserID == 1055350095
-// 			// }
-// 			// return false
-// 		}
-
-// 		// Here we can add a receiver to retreive any message type we want
-// 		// We like to get UpdateNewMessage events and with a specific FilterFunc
-// 		receiver := a.client.AddEventReceiver(&tdlib.UpdateNewMessage{}, eventFilter, 5)
-// 		for newMsg := range receiver.Chan {
-// 			// fmt.Println(newMsg)
-
-// 			updateMsg, ok := (newMsg).(*tdlib.UpdateNewMessage)
-// 			if !ok {
-// 				continue
-// 			}
-// 			// We assume the message content is simple text: (should be more sophisticated for general use)
-// 			msgText, ok := updateMsg.Message.Content.(*tdlib.MessageText)
-// 			if !ok {
-// 				continue
-// 			}
-// 			flag := false
-// 			for _, word := range a.cfg.Words {
-// 				word = strings.ToLower(word)
-// 				text := strings.ToLower(fmt.Sprint(msgText.Text))
-// 				if strings.Contains(text, word) {
-// 					flag = true
-// 					break
-// 				}
-// 			}
-// 			if flag {
-// 				fmt.Println("Search word in MsgText:  ", msgText.Text)
-// 				fmt.Print("\n")
-
-// 				// https://github.com/KaoriEl/go-tdlib/blob/master/examples/sendText/sendText.go
-
-// 				// Should get chatID somehow, check out "getChats" example
-// 				option := tdlib.MessageSendOptions{
-// 					DisableNotification: false, // Pass true to disable notification for the message
-// 					FromBackground:      false, // Pass true if the message is sent from the background
-// 				}
-// 				_, err := a.client.ForwardMessages(a.cfg.ChatID, ChatIDSearchTrue, []int64{updateMsg.Message.ID}, &option, false, false)
-// 				if err != nil {
-// 					a.Log.Error(err)
-// 				}
-// 			}
-// 		}
-
-// 	}()
-
-// 	// rawUpdates gets all updates comming from tdlib
-// 	rawUpdates := a.client.GetRawUpdatesChannel(100)
-// 	for update := range rawUpdates {
-// 		// Show all updates
-// 		log.Trace(update.Data)
-// 		// fmt.Println(update.Data)
-// 		// fmt.Print("\n\n")
-// 	}
-// }

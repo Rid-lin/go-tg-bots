@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/cristalhq/aconfig"
@@ -16,16 +17,21 @@ var ConfigFilePath string
 type Config struct {
 	Words         []string `default:"" usage:"words for search"`
 	ChatsIDSearch []int64  `default:"" usage:"ID chats for Search"`
-	ChatIDSearch  int64    `default:"" usage:"ID chats for Search"`
-	ChatID        int64    `default:"" usage:"ID chats for U"`
-	LogLevel      string   `default:"info" usage:"Log level: panic, fatal, error, warn, info, debug, trace"`
-	PhoneNumber   string   `default:"" usage:"Number phone"`
-	Password      string   `default:"" usage:"Password for, TG"`
-	APIID         string   `default:"" usage:"APIID for api telegram app"`
-	APIHash       string   `default:"" usage:"APIHash for api telegram app"`
+	// ChatIDSearch  int64    `default:"" usage:"ID chats for Search"`
+	ChatID      int64  `default:"" usage:"ID chats for U"`
+	Path        string `default:"" usage:"Path to config.yaml"`
+	LogLevel    string `default:"info" usage:"Log level: panic, fatal, error, warn, info, debug, trace"`
+	PhoneNumber string `default:"" usage:"Number phone"`
+	Password    string `default:"" usage:"Password for, TG"`
+	APIID       int    `default:"" usage:"APIID for api telegram app"`
+	APIHash     string `default:"" usage:"APIHash for api telegram app"`
 }
 
 func New() *Config {
+	wd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
 	// fix for https://github.com/cristalhq/aconfig/issues/82
 	args := []string{}
 	for _, a := range os.Args {
@@ -50,8 +56,8 @@ func New() *Config {
 		FlagPrefix:         "",
 		FileFlag:           "config",
 		Files: []string{
-			"./config.yaml",
-			"./config/config.yaml",
+			filepath.Join(wd, "config.yaml"),
+			filepath.Join(wd, "config", "config.yaml"),
 			"/etc/tgbotfv/config.yaml",
 			"/etc/tgbotfv/config/config.yaml",
 			"/usr/local/tgbotfv/config.yaml",
@@ -68,6 +74,10 @@ func New() *Config {
 	})
 	if err := loader.Load(); err != nil {
 		log.Error(err)
+	}
+
+	if cfg.Path == "" {
+		cfg.Path = wd
 	}
 
 	return &cfg

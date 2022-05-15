@@ -37,7 +37,7 @@ clean: ## Clean bin directory.
 dep: ## Download the dependencies.
 	go mod tidy
 	go mod download
-#	go mod vendor
+	go mod vendor
 
 build: ## Build program executable for linux platform.
 	mkdir -p ${PWD}/bin
