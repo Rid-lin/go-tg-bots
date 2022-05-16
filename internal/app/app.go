@@ -7,15 +7,14 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/rid-lin/go-tgbot-4zenen/internal/config"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/k0kubun/pp"
 	"github.com/pkg/errors"
-	dry "github.com/xelaj/go-dry"
 	"github.com/xelaj/mtproto"
 	"github.com/xelaj/mtproto/telegram"
 )
@@ -54,15 +53,16 @@ func (a *App) Start() {
 	}()
 
 	isRegistred, err := a.authorizationClient()
-	dry.PanicIfErr(err)
+	ExitIfErr(err)
 	if !isRegistred {
 		log.Error("can't registred")
 		os.Exit(1)
 	}
 
-	fmt.Print("Enter code: ")
-	var code string
-	fmt.Scanln(&code)
+	for {
+		a.getUpdates()
+	}
+
 }
 
 func (a *App) configureLogger() {
@@ -77,7 +77,7 @@ func (a *App) configureLogger() {
 func newClient(cfg *config.Config) *telegram.Client {
 	// helper variables
 	appStorage, err := PrepareAppStorage(filepath.Join(cfg.Path, "config"))
-	dry.PanicIfErr(err)
+	ExitIfErr(err)
 	sessionFile := filepath.Join(appStorage, "session.json")
 	publicKeys := filepath.Join(appStorage, "tg_public_keys.pem")
 
@@ -93,7 +93,7 @@ func newClient(cfg *config.Config) *telegram.Client {
 		AppHash:         cfg.APIHash, // app hash, could be find at https://my.telegram.org
 		InitWarnChannel: false,       // if we want to get errors, otherwise, client.Warnings will be set nil
 	})
-	dry.PanicIfErr(err)
+	ExitIfErr(err)
 	client.Warnings = make(chan error) // required to initialize, if we want to get errors
 	ReadWarningsToStdErr(client.Warnings)
 	return client
@@ -121,7 +121,7 @@ func (a *App) authorizationClient() (bool, error) {
 		errResponse := &mtproto.ErrResponseCode{}
 		if !errors.As(err, &errResponse) {
 			// some strange error, looks like a bug actually
-			pp.Println(err)
+			a.Log.Error(err)
 			return false, err
 		} else {
 			if errResponse.Message == "AUTH_RESTART" {
@@ -137,10 +137,10 @@ func (a *App) authorizationClient() (bool, error) {
 				println("Repeat after " + timeoutDuration.String())
 			} else {
 				println("Oh crap! Got strange error:")
-				pp.Println(errResponse)
+				log.Error(errResponse)
 			}
 
-			return false, nil
+			return false, err
 		}
 	}
 
@@ -154,7 +154,7 @@ func (a *App) authorizationClient() (bool, error) {
 		code,
 	)
 	if err == nil {
-		pp.Println(auth)
+		a.Log.Println(auth)
 
 		a.Log.Infoln("Success! You've signed in!")
 		return true, nil
@@ -170,26 +170,41 @@ func (a *App) authorizationClient() (bool, error) {
 	if !ok || errResponse.Message != "SESSION_PASSWORD_NEEDED" {
 		fmt.Println("SignIn failed:", err)
 		println("\n\nMore info about error:")
-		pp.Println(err)
+		a.Log.Println(err)
 		os.Exit(1)
 	}
 
-	fmt.Print("Password:")
-	password, _ := bufio.NewReader(os.Stdin).ReadString('\n')
-	password = strings.ReplaceAll(password, "\n", "")
-
 	accountPassword, err := a.client.AccountGetPassword()
-	dry.PanicIfErr(err)
+	ExitIfErr(err)
 
 	// GetInputCheckPassword is fast response object generator
-	inputCheck, err := telegram.GetInputCheckPassword(password, accountPassword)
-	dry.PanicIfErr(err)
+	inputCheck, err := telegram.GetInputCheckPassword(a.cfg.Password, accountPassword)
+	ExitIfErr(err)
 
 	auth, err = a.client.AuthCheckPassword(inputCheck)
-	dry.PanicIfErr(err)
+	ExitIfErr(err)
 
-	pp.Println(auth)
+	a.Log.Println(auth)
 	fmt.Println("Success! You've signed in!")
 	return true, nil
 
+}
+
+func (a *App) getUpdates() {
+	a.client.AddCustomServerRequestHandler(func(i interface{}) bool {
+		// a.Log.Println(i)
+		fmt.Printf("%v\n", i)
+		return false
+	})
+
+	// we need to call updates.getState, after that telegram server will send you updates
+	state, err := a.client.UpdatesGetState()
+
+	ExitIfErr(err)
+	// this state could be useful, if you want to get old unread updates
+	fmt.Println(state)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	wg.Wait()
 }

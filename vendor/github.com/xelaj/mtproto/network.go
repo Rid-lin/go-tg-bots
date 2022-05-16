@@ -18,11 +18,7 @@ import (
 	"github.com/xelaj/mtproto/internal/utils"
 )
 
-// var magicMu sync.Mutex
-
 func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (chan tl.Object, error) {
-	// magicMu.Lock()
-	// defer magicMu.Unlock()
 	msg, err := tl.Marshal(request)
 	if err != nil {
 		return nil, errors.Wrap(err, "encoding request message")
