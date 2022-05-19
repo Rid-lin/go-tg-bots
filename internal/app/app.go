@@ -202,7 +202,7 @@ func (a *App) getUpdates() {
 
 	ExitIfErr(err)
 	// this state could be useful, if you want to get old unread updates
-	fmt.Println(state)
+	fmt.Println("update state", state)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
